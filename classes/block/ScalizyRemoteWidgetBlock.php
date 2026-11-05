@@ -27,6 +27,11 @@ class ScalizyRemoteWidgetBlock implements ScalizyFrontBlock
         return ['displayHeader', 'displayTop'];
     }
 
+    public function enable(array $settings)
+    {
+        return true;
+    }
+
     public function render(array $settings)
     {
         $widget = Tools::file_get_contents($settings['url']);

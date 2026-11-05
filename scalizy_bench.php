@@ -1,6 +1,6 @@
 <?php
 /**
- * Front office blocks: a featured product repeated across slots, a product ranking and a remote widget.
+ * Front office blocks: a featured product repeated across slots, the popular products, a product ranking and a remote widget.
  *
  * @author    Softizy
  * @copyright Softizy
@@ -12,24 +12,26 @@ if (!defined('_PS_VERSION_')) {
 
 require_once __DIR__ . '/classes/ScalizyFrontBlock.php';
 require_once __DIR__ . '/classes/block/ScalizyFeaturedProductBlock.php';
+require_once __DIR__ . '/classes/block/ScalizyPopularProductsBlock.php';
 require_once __DIR__ . '/classes/block/ScalizyProductRankingBlock.php';
 require_once __DIR__ . '/classes/block/ScalizyRemoteWidgetBlock.php';
 
 class Scalizy_Bench extends Module
 {
-    const HOOKS = ['displayHeader', 'displayNav1', 'displayTop', 'displayHome', 'displayFooterBefore', 'displayFooter'];
+    const HOOKS = ['displayHeader', 'displayNav1', 'displayNavFullWidth', 'displayTop', 'displayHome', 'displayFooterBefore', 'displayFooter', 'displayFooterAfter'];
 
     const BLOCKS = [
-        'SCALIZY_FEATURED_PRODUCT' => ['class' => 'ScalizyFeaturedProductBlock', 'title' => 'Featured product', 'checkbox' => 'SQL'],
-        'SCALIZY_PRODUCT_RANKING' => ['class' => 'ScalizyProductRankingBlock', 'title' => 'Product ranking', 'checkbox' => 'Hook'],
-        'SCALIZY_REMOTE_WIDGET' => ['class' => 'ScalizyRemoteWidgetBlock', 'title' => 'Remote widget', 'checkbox' => 'TTFB'],
+        'SCALIZY_FEATURED_PRODUCT' => ['class' => 'ScalizyFeaturedProductBlock', 'title' => 'Featured product', 'checkbox' => 'sql-n-plus-1'],
+        'SCALIZY_POPULAR_PRODUCTS' => ['class' => 'ScalizyPopularProductsBlock', 'title' => 'Popular products', 'checkbox' => 'sql-slow-query'],
+        'SCALIZY_PRODUCT_RANKING' => ['class' => 'ScalizyProductRankingBlock', 'title' => 'Product ranking', 'checkbox' => 'ttfb-hook'],
+        'SCALIZY_REMOTE_WIDGET' => ['class' => 'ScalizyRemoteWidgetBlock', 'title' => 'Remote widget', 'checkbox' => 'ttfb-external-call'],
     ];
 
     public function __construct()
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '1.3.1';
+        $this->version = '1.4.0';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -38,7 +40,7 @@ class Scalizy_Bench extends Module
         parent::__construct();
 
         $this->displayName = $this->l('Scalizy front blocks');
-        $this->description = $this->l('Featured product, product ranking and remote widget blocks for the front office.');
+        $this->description = $this->l('Featured product, popular products, product ranking and remote widget blocks for the front office.');
     }
 
     public function install()
@@ -55,6 +57,8 @@ class Scalizy_Bench extends Module
         }
         Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_HTML);
         Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_FETCHED_AT);
+        Configuration::deleteByName(ScalizyProductRankingBlock::ROUNDS);
+        ScalizyPopularProductsBlock::dropTable();
 
         return parent::uninstall();
     }
@@ -84,6 +88,11 @@ class Scalizy_Bench extends Module
         return $this->renderBlocks('displayNav1');
     }
 
+    public function hookDisplayNavFullWidth($params)
+    {
+        return $this->renderBlocks('displayNavFullWidth');
+    }
+
     public function hookDisplayTop($params)
     {
         return $this->renderBlocks('displayTop');
@@ -102,6 +111,11 @@ class Scalizy_Bench extends Module
     public function hookDisplayFooter($params)
     {
         return $this->renderBlocks('displayFooter');
+    }
+
+    public function hookDisplayFooterAfter($params)
+    {
+        return $this->renderBlocks('displayFooterAfter');
     }
 
     private function renderBlocks($hook)
@@ -215,6 +229,9 @@ class Scalizy_Bench extends Module
                         Configuration::updateValue($name, $block['values'][$key]);
                     }
                 }
+                $class = self::BLOCKS[$config]['class'];
+                $values = self::parseBlock($class, $block['values']);
+                (new $class($this))->enable($values['settings']);
             }
         }
 

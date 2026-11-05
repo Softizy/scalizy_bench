@@ -21,6 +21,15 @@ interface ScalizyFrontBlock
     public static function hooks();
 
     /**
+     * Prepares what the block reads once it is displayed, each time its settings are saved.
+     *
+     * @param array<string, int|string> $settings
+     *
+     * @return bool
+     */
+    public function enable(array $settings);
+
+    /**
      * @param array<string, int|string> $settings
      *
      * @return string

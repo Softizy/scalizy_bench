@@ -27,6 +27,11 @@ class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
         return ['displayFooter', 'displayHome'];
     }
 
+    public function enable(array $settings)
+    {
+        return true;
+    }
+
     public function render(array $settings)
     {
         $context = Context::getContext();
