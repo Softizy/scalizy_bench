@@ -1,6 +1,6 @@
 <?php
 /**
- * Front office blocks: a featured product repeated across slots and a remote widget.
+ * Front office blocks: a featured product repeated across slots, a product ranking and a remote widget.
  *
  * @author    Softizy
  * @copyright Softizy
@@ -12,24 +12,24 @@ if (!defined('_PS_VERSION_')) {
 
 require_once __DIR__ . '/classes/ScalizyFrontBlock.php';
 require_once __DIR__ . '/classes/block/ScalizyFeaturedProductBlock.php';
+require_once __DIR__ . '/classes/block/ScalizyProductRankingBlock.php';
 require_once __DIR__ . '/classes/block/ScalizyRemoteWidgetBlock.php';
 
 class Scalizy_Bench extends Module
 {
-    const CONFIG_BLOCKS = 'SCALIZY_FRONT_BLOCKS';
-
-    const HOOKS = ['displayHeader', 'displayTop', 'displayHome', 'displayFooter'];
+    const HOOKS = ['displayHeader', 'displayNav1', 'displayTop', 'displayHome', 'displayFooterBefore', 'displayFooter'];
 
     const BLOCKS = [
-        'featured_product' => 'ScalizyFeaturedProductBlock',
-        'remote_widget' => 'ScalizyRemoteWidgetBlock',
+        'SCALIZY_FEATURED_PRODUCT' => ['class' => 'ScalizyFeaturedProductBlock', 'title' => 'Featured product', 'checkbox' => 'SQL'],
+        'SCALIZY_PRODUCT_RANKING' => ['class' => 'ScalizyProductRankingBlock', 'title' => 'Product ranking', 'checkbox' => 'Hook'],
+        'SCALIZY_REMOTE_WIDGET' => ['class' => 'ScalizyRemoteWidgetBlock', 'title' => 'Remote widget', 'checkbox' => 'TTFB'],
     ];
 
     public function __construct()
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '1.2.2';
+        $this->version = '1.3.0';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -38,28 +38,50 @@ class Scalizy_Bench extends Module
         parent::__construct();
 
         $this->displayName = $this->l('Scalizy front blocks');
-        $this->description = $this->l('Featured product and remote widget blocks for the front office.');
+        $this->description = $this->l('Featured product, product ranking and remote widget blocks for the front office.');
     }
 
     public function install()
     {
-        Configuration::updateValue(self::CONFIG_BLOCKS, '[]');
-
-        return parent::install() && $this->registerHook(self::HOOKS);
+        return parent::install() && $this->registerHook(self::HOOKS) && $this->resetBlocks();
     }
 
     public function uninstall()
     {
-        Configuration::deleteByName(self::CONFIG_BLOCKS);
+        foreach (self::BLOCKS as $config => $block) {
+            foreach (self::fieldNames($config, $block['class']) as $name) {
+                Configuration::deleteByName($name);
+            }
+        }
         Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_HTML);
         Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_FETCHED_AT);
 
         return parent::uninstall();
     }
 
+    public function resetBlocks()
+    {
+        foreach (self::BLOCKS as $config => $block) {
+            $class = $block['class'];
+            $hooks = $class::hooks();
+            Configuration::updateValue($config . '_ENABLED', 0);
+            Configuration::updateValue($config . '_HOOK', $hooks[0]);
+            foreach ($class::settings() as $name => $default) {
+                Configuration::updateValue($config . '_' . strtoupper($name), $default);
+            }
+        }
+
+        return true;
+    }
+
     public function hookDisplayHeader($params)
     {
         return $this->renderBlocks('displayHeader');
+    }
+
+    public function hookDisplayNav1($params)
+    {
+        return $this->renderBlocks('displayNav1');
     }
 
     public function hookDisplayTop($params)
@@ -72,6 +94,11 @@ class Scalizy_Bench extends Module
         return $this->renderBlocks('displayHome');
     }
 
+    public function hookDisplayFooterBefore($params)
+    {
+        return $this->renderBlocks('displayFooterBefore');
+    }
+
     public function hookDisplayFooter($params)
     {
         return $this->renderBlocks('displayFooter');
@@ -79,17 +106,19 @@ class Scalizy_Bench extends Module
 
     private function renderBlocks($hook)
     {
-        try {
-            $blocks = self::parseBlocks((string) Configuration::get(self::CONFIG_BLOCKS));
-        } catch (InvalidArgumentException $e) {
-            return '';
-        }
-
         $html = '';
-        foreach ($blocks as $block) {
-            if ($block['hook'] === $hook) {
-                $class = self::BLOCKS[$block['type']];
-                $html .= (new $class($this))->render($block['settings']);
+        foreach (self::BLOCKS as $config => $block) {
+            if (!Configuration::get($config . '_ENABLED')) {
+                continue;
+            }
+            try {
+                $values = self::parseBlock($block['class'], self::storedValues($config, $block['class']));
+            } catch (InvalidArgumentException $e) {
+                continue;
+            }
+            if ($values['hook'] === $hook) {
+                $class = $block['class'];
+                $html .= (new $class($this))->render($values['settings']);
             }
         }
 
@@ -97,85 +126,131 @@ class Scalizy_Bench extends Module
     }
 
     /**
-     * @return array<int, array{type: string, hook: string, settings: array<string, int|string>}>
+     * @param array<string, string> $values hook and settings of the block, as entered
      *
-     * @throws InvalidArgumentException when the configuration names a block, hook or setting the module does not know
+     * @return array{hook: string, settings: array<string, int|string>}
+     *
+     * @throws InvalidArgumentException when the hook or a setting is not one the block accepts
      */
-    public static function parseBlocks($json)
+    public static function parseBlock($class, array $values)
     {
-        $entries = json_decode($json, true);
-        if (!is_array($entries) || array_values($entries) !== $entries) {
-            throw new InvalidArgumentException('The blocks must be a JSON list.');
+        if (!in_array($values['hook'], $class::hooks(), true)) {
+            throw new InvalidArgumentException(sprintf('displays on %s', implode(', ', $class::hooks())));
         }
 
-        $blocks = [];
-        foreach ($entries as $index => $entry) {
-            $type = is_array($entry) && isset($entry['type']) && is_string($entry['type']) ? $entry['type'] : null;
-            if (null === $type || !array_key_exists($type, self::BLOCKS)) {
-                throw new InvalidArgumentException(sprintf('Block %d: type must be one of %s.', $index, implode(', ', array_keys(self::BLOCKS))));
-            }
-            $class = self::BLOCKS[$type];
-            $hook = isset($entry['hook']) ? $entry['hook'] : null;
-            if (!in_array($hook, $class::hooks(), true)) {
-                throw new InvalidArgumentException(sprintf('Block %d: %s displays on %s.', $index, $type, implode(', ', $class::hooks())));
-            }
-            $settings = array_merge($class::settings(), array_diff_key($entry, ['type' => true, 'hook' => true]));
-            foreach ($settings as $name => $value) {
-                if (!self::isValidSetting($class::settings(), $name, $value)) {
-                    throw new InvalidArgumentException(sprintf('Block %d: %s takes the settings %s.', $index, $type, self::describeSettings($class::settings())));
+        $settings = [];
+        foreach ($class::settings() as $name => $default) {
+            $value = trim((string) $values[$name]);
+            if (is_int($default)) {
+                if (!ctype_digit($value)) {
+                    throw new InvalidArgumentException(sprintf('%s must be a whole number', $name));
                 }
+                $settings[$name] = (int) $value;
+            } else {
+                if ('' === $value || !Validate::isAbsoluteUrl($value)) {
+                    throw new InvalidArgumentException(sprintf('%s must be an absolute URL', $name));
+                }
+                $settings[$name] = $value;
             }
-            $blocks[] = ['type' => $type, 'hook' => $hook, 'settings' => $settings];
         }
 
-        return $blocks;
+        return ['hook' => $values['hook'], 'settings' => $settings];
     }
 
-    private static function isValidSetting(array $defaults, $name, $value)
+    private static function storedValues($config, $class)
     {
-        if (!array_key_exists($name, $defaults)) {
-            return false;
-        }
-        if (is_int($defaults[$name])) {
-            return is_int($value) && $value >= 0;
+        $values = ['hook' => (string) Configuration::get($config . '_HOOK')];
+        foreach (array_keys($class::settings()) as $name) {
+            $values[$name] = (string) Configuration::get($config . '_' . strtoupper($name));
         }
 
-        return is_string($value) && Validate::isAbsoluteUrl($value) && '' !== $value;
+        return $values;
     }
 
-    private static function describeSettings(array $defaults)
+    private static function fieldNames($config, $class)
     {
-        $described = [];
-        foreach ($defaults as $name => $default) {
-            $described[] = is_int($default) ? sprintf('%s (integer, %d)', $name, $default) : sprintf('%s (URL, required)', $name);
+        $names = ['hook' => $config . '_HOOK'];
+        foreach (array_keys($class::settings()) as $name) {
+            $names[$name] = $config . '_' . strtoupper($name);
         }
 
-        return implode(', ', $described);
+        return ['enabled' => $config . '_ENABLED'] + $names;
     }
 
     public function getContent()
     {
-        $output = '';
-        $json = (string) Configuration::get(self::CONFIG_BLOCKS);
-        if (Tools::isSubmit('submitScalizyFrontBlocks')) {
-            $json = trim((string) Tools::getValue(self::CONFIG_BLOCKS));
-            try {
-                self::parseBlocks($json);
-                Configuration::updateValue(self::CONFIG_BLOCKS, $json);
-                $output .= $this->displayConfirmation($this->l('Settings updated'));
-            } catch (InvalidArgumentException $e) {
-                $output .= $this->displayError($e->getMessage());
+        if (!Tools::isSubmit('submitScalizyFrontBlocks')) {
+            return $this->renderForm();
+        }
+
+        $submitted = [];
+        $errors = [];
+        foreach (self::BLOCKS as $config => $block) {
+            $enabled = (bool) Tools::getValue($config . '_ENABLED_on');
+            $values = [];
+            foreach (self::fieldNames($config, $block['class']) as $key => $name) {
+                if ('enabled' !== $key) {
+                    $values[$key] = (string) Tools::getValue($name);
+                }
+            }
+            if ($enabled) {
+                try {
+                    self::parseBlock($block['class'], $values);
+                } catch (InvalidArgumentException $e) {
+                    $errors[] = sprintf('%s (%s): %s.', $block['title'], $block['checkbox'], $e->getMessage());
+                }
+            }
+            $submitted[$config] = ['enabled' => $enabled, 'values' => $values];
+        }
+
+        if ([] !== $errors) {
+            return $this->displayError($errors) . $this->renderForm();
+        }
+
+        foreach ($submitted as $config => $block) {
+            Configuration::updateValue($config . '_ENABLED', $block['enabled'] ? 1 : 0);
+            if ($block['enabled']) {
+                foreach (self::fieldNames($config, self::BLOCKS[$config]['class']) as $key => $name) {
+                    if ('enabled' !== $key) {
+                        Configuration::updateValue($name, $block['values'][$key]);
+                    }
+                }
             }
         }
 
-        return $output . $this->renderForm($json);
+        return $this->displayConfirmation($this->l('Settings updated')) . $this->renderForm();
     }
 
-    private function renderForm($json)
+    private function renderForm()
     {
-        $blocks = [];
-        foreach (self::BLOCKS as $type => $class) {
-            $blocks[] = sprintf('%s on %s: %s', $type, implode(', ', $class::hooks()), self::describeSettings($class::settings()));
+        $forms = [];
+        $fieldsValue = [];
+        foreach (self::BLOCKS as $config => $block) {
+            $class = $block['class'];
+            $inputs = [[
+                'type' => 'checkbox',
+                'label' => $this->l('Display'),
+                'name' => $config . '_ENABLED',
+                'values' => ['query' => [['id' => 'on', 'name' => $block['checkbox']]], 'id' => 'id', 'name' => 'name'],
+            ], [
+                'type' => 'select',
+                'label' => $this->l('Hook'),
+                'name' => $config . '_HOOK',
+                'options' => ['query' => array_map(function ($hook) {
+                    return ['id' => $hook, 'name' => $hook];
+                }, $class::hooks()), 'id' => 'id', 'name' => 'name'],
+            ]];
+            foreach ($class::settings() as $name => $default) {
+                $inputs[] = ['type' => 'text', 'label' => $name, 'name' => $config . '_' . strtoupper($name), 'desc' => is_int($default) ? $this->l('Whole number') : $this->l('Absolute URL')];
+            }
+            foreach (self::fieldNames($config, $class) as $key => $name) {
+                $fieldsValue['enabled' === $key ? $name . '_on' : $name] = Configuration::get($name);
+            }
+            $forms[] = ['form' => [
+                'legend' => ['title' => $block['title']],
+                'input' => $inputs,
+                'submit' => ['title' => $this->l('Save')],
+            ]];
         }
 
         $helper = new HelperForm();
@@ -184,23 +259,8 @@ class Scalizy_Bench extends Module
         $helper->token = Tools::getAdminTokenLite('AdminModules');
         $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
         $helper->submit_action = 'submitScalizyFrontBlocks';
-        $helper->fields_value = [self::CONFIG_BLOCKS => $json];
+        $helper->fields_value = $fieldsValue;
 
-        return $helper->generateForm([[
-            'form' => [
-                'legend' => ['title' => $this->l('Blocks')],
-                'input' => [[
-                    'type' => 'textarea',
-                    'label' => $this->l('Blocks to display (JSON list, [] for none)'),
-                    'name' => self::CONFIG_BLOCKS,
-                    'rows' => 8,
-                    'desc' => sprintf(
-                        'Blocks — %s. Example: [{"type": "featured_product", "hook": "displayFooter", "product_id": 1, "slots": 12}]',
-                        implode(' ; ', $blocks)
-                    ),
-                ]],
-                'submit' => ['title' => $this->l('Save')],
-            ],
-        ]]);
+        return $helper->generateForm($forms);
     }
 }

@@ -1,30 +1,26 @@
 # scalizy_bench — Scalizy front blocks
 
-Module PrestaShop qui ajoute des blocs au front office : un produit à la une répété sur plusieurs emplacements, et un widget HTML récupéré sur une URL distante.
+Module PrestaShop qui ajoute trois blocs au front office : un produit à la une répété sur plusieurs emplacements, un classement de produits, et un widget HTML récupéré sur une URL distante.
 
 Compatible PrestaShop 1.7 et 8.
 
 ## À l'installation
 
-Aucun bloc n'est affiché : `SCALIZY_FRONT_BLOCKS` vaut `[]`.
+Aucun bloc n'est affiché : les trois cases sont décochées.
 
 ## Configuration
 
-Back-office, Modules > Scalizy front blocks : `SCALIZY_FRONT_BLOCKS` contient une liste JSON de blocs. Chaque bloc a un `type`, le `hook` où il s'affiche (parmi ceux de son type), et ses réglages (valeur par défaut si absents). Une configuration invalide est refusée à l'enregistrement et l'ancienne valeur est conservée ; une valeur invalide écrite directement en base n'affiche aucun bloc.
+Back-office, Modules > Scalizy front blocks : une section par bloc, avec sa case à cocher, son hook et ses réglages. On peut cocher un, plusieurs ou aucun bloc.
 
-```json
-[
-  {"type": "featured_product", "hook": "displayFooter", "product_id": 42, "slots": 12},
-  {"type": "remote_widget", "hook": "displayHeader", "url": "https://widgets.example.com/banner"}
-]
-```
-
-## Blocs
-
-| Type | Affiche | Hooks | Réglages (défaut) | Code |
+| Case | Bloc | Hooks | Réglages (défaut) | Code |
 |---|---|---|---|---|
-| `featured_product` | le nom du produit à la une sur chaque emplacement | `displayHome`, `displayFooter` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
-| `remote_widget` | le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
+| SQL | Featured product : le nom du produit à la une sur chaque emplacement | `displayFooter`, `displayHome` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
+| Hook | Product ranking : les 5 premiers produits d'un classement affiné pendant `refine_ms` | `displayFooterBefore`, `displayNav1` | `products` (60), `refine_ms` (400) | `classes/block/ScalizyProductRankingBlock.php` |
+| TTFB | Remote widget : le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
+
+Les réglages d'un bloc coché sont vérifiés à l'enregistrement : une valeur invalide est refusée avec son message, et rien n'est enregistré. Un bloc dont la configuration en base est invalide n'est pas affiché.
+
+Clés de configuration : `SCALIZY_<BLOC>_ENABLED`, `SCALIZY_<BLOC>_HOOK` et `SCALIZY_<BLOC>_<RÉGLAGE>`, avec `<BLOC>` parmi `FEATURED_PRODUCT`, `PRODUCT_RANKING` et `REMOTE_WIDGET`.
 
 Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (ses réglages et leur valeur par défaut, ses hooks, puis `render()`), déclarée dans `Scalizy_Bench::BLOCKS`.
 
@@ -34,6 +30,8 @@ Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFront
 cp -r scalizy_bench <boutique>/modules/
 php bin/console prestashop:module install scalizy_bench
 ```
+
+Depuis la 1.2.x : `php bin/console prestashop:module upgrade scalizy_bench` remplace `SCALIZY_FRONT_BLOCKS` par les nouvelles clés, tous blocs décochés.
 
 ## Licence
 

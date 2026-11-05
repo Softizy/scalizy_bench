@@ -24,7 +24,7 @@ class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
 
     public static function hooks()
     {
-        return ['displayHome', 'displayFooter'];
+        return ['displayFooter', 'displayHome'];
     }
 
     public function render(array $settings)
