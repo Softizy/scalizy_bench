@@ -8,17 +8,17 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-interface ScalizyBenchDefect
+interface ScalizyFrontBlock
 {
     /**
-     * @return array<string, int> parameters of the defect, with their default value
+     * @return array<string, int|string> settings of the block, with their default value
      */
-    public static function parameters();
+    public static function settings();
 
     /**
-     * @param array<string, int> $parameters
+     * @param array<string, int|string> $settings
      *
      * @return string
      */
-    public function produce(array $parameters);
+    public function render(array $settings);
 }

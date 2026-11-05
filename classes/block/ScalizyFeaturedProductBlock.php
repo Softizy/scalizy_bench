@@ -8,7 +8,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ScalizyBenchSqlNPlusOneDefect implements ScalizyBenchDefect
+class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
 {
     private $module;
 
@@ -17,27 +17,27 @@ class ScalizyBenchSqlNPlusOneDefect implements ScalizyBenchDefect
         $this->module = $module;
     }
 
-    public static function parameters()
+    public static function settings()
     {
-        return ['iterations' => 300, 'product_id' => 42];
+        return ['product_id' => 1, 'slots' => 12];
     }
 
-    public function produce(array $parameters)
+    public function render(array $settings)
     {
         $context = Context::getContext();
-        $idProduct = (int) $parameters['product_id'];
+        $idProduct = (int) $settings['product_id'];
         $idLang = (int) $context->language->id;
         $idShop = (int) $context->shop->id;
-        $items = [];
-        for ($slot = 0; $slot < $parameters['iterations']; ++$slot) {
+        $slots = [];
+        for ($slot = 0; $slot < $settings['slots']; ++$slot) {
             $rows = Db::getInstance()->executeS('SELECT pl.`name`, pl.`link_rewrite` FROM `' . _DB_PREFIX_ . 'product_lang` pl WHERE pl.`id_product` = ' . $idProduct . ' AND pl.`id_lang` = ' . $idLang . ' AND pl.`id_shop` = ' . $idShop);
             if (!empty($rows)) {
-                $items[] = $rows[0];
+                $slots[] = $rows[0];
             }
         }
 
-        $context->smarty->assign('scalizy_bench_items', $items);
+        $context->smarty->assign('featured_product_slots', $slots);
 
-        return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/items.tpl');
+        return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/featured_product.tpl');
     }
 }

@@ -1,42 +1,34 @@
-# scalizy_bench
+# scalizy_bench — Scalizy front blocks
 
-Module PrestaShop de banc pour la veille de régression Scalizy. Il produit **sur demande** des défauts de performance réels, pour que l'analyse de code d'une régression puisse aller jusqu'au correctif.
-
-> Ne jamais installer ce module sur une boutique de production.
+Module PrestaShop qui ajoute des blocs au front office : un produit à la une répété sur plusieurs emplacements, et un widget HTML récupéré sur une URL distante.
 
 Compatible PrestaShop 1.7 et 8.
 
-## Neutre par défaut
+## À l'installation
 
-À l'installation, aucun défaut n'est actif (`SCALIZY_BENCH_DEFECTS` vaut `[]`) : le module n'ajoute ni requête ni attente. On choisit ensuite le ou les défauts à produire, avec leurs paramètres.
+Aucun bloc n'est affiché : `SCALIZY_FRONT_BLOCKS` vaut `[]`.
 
 ## Configuration
 
-Back-office, Modules > Scalizy bench : la clé `SCALIZY_BENCH_DEFECTS` contient une liste JSON de défauts. Chaque défaut a un `type` du catalogue, un `hook` où il se produit, et ses paramètres (valeur par défaut si absents). Une configuration invalide est refusée à l'enregistrement ; une valeur invalide écrite directement en base laisse le module neutre.
+Back-office, Modules > Scalizy front blocks : `SCALIZY_FRONT_BLOCKS` contient une liste JSON de blocs. Chaque bloc a un `type`, le `hook` où il s'affiche, et ses réglages (valeur par défaut si absents). Une configuration invalide est refusée à l'enregistrement et l'ancienne valeur est conservée ; une valeur invalide écrite directement en base n'affiche aucun bloc.
 
 ```json
 [
-  {"type": "sql_n_plus_1", "hook": "displayFooter", "iterations": 300, "product_id": 42},
-  {"type": "blocking_wait", "hook": "displayHeader", "ms": 400}
+  {"type": "featured_product", "hook": "displayFooter", "product_id": 42, "slots": 12},
+  {"type": "remote_widget", "hook": "displayHeader", "url": "https://widgets.example.com/banner"}
 ]
 ```
 
 Hooks disponibles : `displayHeader`, `displayTop`, `displayHome`, `displayFooter`.
 
-## Catalogue
+## Blocs
 
-| Type | Défaut produit | Paramètres (défaut) | Code | Scénario du Data Processor |
-|---|---|---|---|---|
-| `sql_n_plus_1` | relit le même produit à chaque itération : une requête par itération (N+1) | `iterations` (300), `product_id` (42) | `classes/defect/ScalizyBenchSqlNPlusOneDefect.php` | `sql-n-plus-1` |
-| `blocking_wait` | attente bloquante | `ms` (400) | `classes/defect/ScalizyBenchBlockingWaitDefect.php` | `ttfb-hook` |
+| Type | Affiche | Réglages (défaut) | Code |
+|---|---|---|---|
+| `featured_product` | le nom du produit à la une sur chaque emplacement | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
+| `remote_widget` | le HTML servi par l'URL du widget | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
 
-La requête répétée par `sql_n_plus_1` a la signature du scénario `sql-n-plus-1` :
-
-```sql
-SELECT pl.`name`, pl.`link_rewrite` FROM `ps_product_lang` pl WHERE pl.`id_product` = 42 AND pl.`id_lang` = 1 AND pl.`id_shop` = 1
-```
-
-Ajouter un défaut : une classe dans `classes/defect/` qui implémente `ScalizyBenchDefect` (ses paramètres et leur valeur par défaut, puis `produce()`), déclarée dans `Scalizy_Bench::CATALOG`.
+Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (ses réglages et leur valeur par défaut, puis `render()`), déclarée dans `Scalizy_Bench::BLOCKS`.
 
 ## Installation
 
