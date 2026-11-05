@@ -21,7 +21,7 @@ class ScalizyProductRankingBlock implements ScalizyFrontBlock
 
     public static function settings()
     {
-        return ['products' => 60, 'refine_ms' => 400];
+        return ['products' => 200, 'rounds' => 300];
     }
 
     public static function hooks()
@@ -33,19 +33,16 @@ class ScalizyProductRankingBlock implements ScalizyFrontBlock
     {
         $products = max(2, (int) $settings['products']);
         $ratings = array_fill(1, $products, 1500.0);
-        $deadline = microtime(true) + $settings['refine_ms'] / 1000;
-        mt_srand($products);
-        do {
-            $first = mt_rand(1, $products);
-            $second = mt_rand(1, $products);
-            if ($first === $second) {
-                continue;
+        for ($round = 0; $round < $settings['rounds']; ++$round) {
+            for ($first = 1; $first < $products; ++$first) {
+                for ($second = $first + 1; $second <= $products; ++$second) {
+                    $expected = 1 / (1 + pow(10, ($ratings[$second] - $ratings[$first]) / 400));
+                    $won = ($first * 7 + $second * 3 + $round) % 5 < 3 ? 1.0 : 0.0;
+                    $ratings[$first] += 16 * ($won - $expected);
+                    $ratings[$second] -= 16 * ($won - $expected);
+                }
             }
-            $expected = 1 / (1 + pow(10, ($ratings[$second] - $ratings[$first]) / 400));
-            $won = ($first * 7 + $second * 3) % 5 < 3 ? 1.0 : 0.0;
-            $ratings[$first] += 16 * ($won - $expected);
-            $ratings[$second] -= 16 * ($won - $expected);
-        } while (microtime(true) < $deadline);
+        }
 
         arsort($ratings);
 

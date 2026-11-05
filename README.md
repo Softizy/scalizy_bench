@@ -15,7 +15,7 @@ Back-office, Modules > Scalizy front blocks : une section par bloc, avec sa case
 | Case | Bloc | Hooks | Réglages (défaut) | Code |
 |---|---|---|---|---|
 | SQL | Featured product : le nom du produit à la une sur chaque emplacement | `displayFooter`, `displayHome` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
-| Hook | Product ranking : les 5 premiers produits d'un classement affiné pendant `refine_ms` | `displayFooterBefore`, `displayNav1` | `products` (60), `refine_ms` (400) | `classes/block/ScalizyProductRankingBlock.php` |
+| Hook | Product ranking : les 5 premiers produits d'un classement par confrontations deux à deux, sur `rounds` tours | `displayFooterBefore`, `displayNav1` | `products` (200), `rounds` (300) | `classes/block/ScalizyProductRankingBlock.php` |
 | TTFB | Remote widget : le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
 
 Les réglages d'un bloc coché sont vérifiés à l'enregistrement : une valeur invalide est refusée avec son message, et rien n'est enregistré. Un bloc dont la configuration en base est invalide n'est pas affiché.
@@ -31,7 +31,7 @@ cp -r scalizy_bench <boutique>/modules/
 php bin/console prestashop:module install scalizy_bench
 ```
 
-Depuis la 1.2.x : `php bin/console prestashop:module upgrade scalizy_bench` remplace `SCALIZY_FRONT_BLOCKS` par les nouvelles clés, tous blocs décochés.
+Depuis la 1.2.x : `php bin/console prestashop:module upgrade scalizy_bench` remplace `SCALIZY_FRONT_BLOCKS` par les nouvelles clés, tous blocs décochés. Depuis la 1.3.0 : la même commande remplace `refine_ms` par `products` et `rounds`.
 
 ## Licence
 
