@@ -1,35 +1,42 @@
 # scalizy_bench
 
-Module PrestaShop de banc pour la veille de régression Scalizy. Son code contient **volontairement** deux défauts de performance, pour que l'analyse de code d'une régression puisse aller jusqu'au correctif.
+Module PrestaShop de banc pour la veille de régression Scalizy. Il produit **sur demande** des défauts de performance réels, pour que l'analyse de code d'une régression puisse aller jusqu'au correctif.
 
 > Ne jamais installer ce module sur une boutique de production.
 
 Compatible PrestaShop 1.7 et 8.
 
-## Défauts
+## Neutre par défaut
 
-| Hook | Défaut | Scénario du Data Processor | Effet mesuré sur la page d'accueil |
-|---|---|---|---|
-| `displayFooter` | relit le même produit dans une boucle : une requête par emplacement (N+1) | `sql-n-plus-1` | +300 requêtes |
-| `displayHeader` | attente bloquante de 400 ms | `ttfb-hook` | +400 ms de TTFB |
+À l'installation, aucun défaut n'est actif (`SCALIZY_BENCH_DEFECTS` vaut `[]`) : le module n'ajoute ni requête ni attente. On choisit ensuite le ou les défauts à produire, avec leurs paramètres.
 
-La requête répétée a la signature du scénario `sql-n-plus-1` :
+## Configuration
+
+Back-office, Modules > Scalizy bench : la clé `SCALIZY_BENCH_DEFECTS` contient une liste JSON de défauts. Chaque défaut a un `type` du catalogue, un `hook` où il se produit, et ses paramètres (valeur par défaut si absents). Une configuration invalide est refusée à l'enregistrement ; une valeur invalide écrite directement en base laisse le module neutre.
+
+```json
+[
+  {"type": "sql_n_plus_1", "hook": "displayFooter", "iterations": 300, "product_id": 42},
+  {"type": "blocking_wait", "hook": "displayHeader", "ms": 400}
+]
+```
+
+Hooks disponibles : `displayHeader`, `displayTop`, `displayHome`, `displayFooter`.
+
+## Catalogue
+
+| Type | Défaut produit | Paramètres (défaut) | Code | Scénario du Data Processor |
+|---|---|---|---|---|
+| `sql_n_plus_1` | relit le même produit à chaque itération : une requête par itération (N+1) | `iterations` (300), `product_id` (42) | `classes/defect/ScalizyBenchSqlNPlusOneDefect.php` | `sql-n-plus-1` |
+| `blocking_wait` | attente bloquante | `ms` (400) | `classes/defect/ScalizyBenchBlockingWaitDefect.php` | `ttfb-hook` |
+
+La requête répétée par `sql_n_plus_1` a la signature du scénario `sql-n-plus-1` :
 
 ```sql
 SELECT pl.`name`, pl.`link_rewrite` FROM `ps_product_lang` pl WHERE pl.`id_product` = 42 AND pl.`id_lang` = 1 AND pl.`id_shop` = 1
 ```
 
-## Configuration
-
-Chaque défaut s'active ou se coupe dans la configuration du module (back-office, Modules > Scalizy bench), pour mesurer un avant/après. Les deux sont actifs à l'installation.
-
-| Clé | Défaut | Rôle |
-|---|---|---|
-| `SCALIZY_BENCH_FOOTER_DEFECT` | 1 | active le bloc N+1 du pied de page |
-| `SCALIZY_BENCH_HEADER_DEFECT` | 1 | active l'attente de l'en-tête |
-| `SCALIZY_BENCH_PRODUCT_ID` | 42 | produit relu |
-| `SCALIZY_BENCH_FOOTER_ITEMS` | 300 | emplacements du bloc, donc requêtes par page |
-| `SCALIZY_BENCH_HEADER_DELAY_MS` | 400 | durée de l'attente, en ms |
+Ajouter un défaut : une classe dans `classes/defect/` qui implémente `ScalizyBenchDefect` (ses paramètres et leur valeur par défaut, puis `produce()`), déclarée dans `Scalizy_Bench::CATALOG`.
 
 ## Installation
 
