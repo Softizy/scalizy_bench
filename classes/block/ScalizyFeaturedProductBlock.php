@@ -22,6 +22,11 @@ class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
         return ['product_id' => 1, 'slots' => 12];
     }
 
+    public static function hooks()
+    {
+        return ['displayHome', 'displayFooter'];
+    }
+
     public function render(array $settings)
     {
         $context = Context::getContext();

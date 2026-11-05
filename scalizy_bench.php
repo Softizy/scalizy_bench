@@ -29,7 +29,7 @@ class Scalizy_Bench extends Module
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '1.2.0';
+        $this->version = '1.2.1';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -112,11 +112,11 @@ class Scalizy_Bench extends Module
             if (null === $type || !array_key_exists($type, self::BLOCKS)) {
                 throw new InvalidArgumentException(sprintf('Block %d: type must be one of %s.', $index, implode(', ', array_keys(self::BLOCKS))));
             }
-            $hook = isset($entry['hook']) ? $entry['hook'] : null;
-            if (!in_array($hook, self::HOOKS, true)) {
-                throw new InvalidArgumentException(sprintf('Block %d: hook must be one of %s.', $index, implode(', ', self::HOOKS)));
-            }
             $class = self::BLOCKS[$type];
+            $hook = isset($entry['hook']) ? $entry['hook'] : null;
+            if (!in_array($hook, $class::hooks(), true)) {
+                throw new InvalidArgumentException(sprintf('Block %d: %s displays on %s.', $index, $type, implode(', ', $class::hooks())));
+            }
             $settings = array_merge($class::settings(), array_diff_key($entry, ['type' => true, 'hook' => true]));
             foreach ($settings as $name => $value) {
                 if (!self::isValidSetting($class::settings(), $name, $value)) {
@@ -173,7 +173,7 @@ class Scalizy_Bench extends Module
     {
         $blocks = [];
         foreach (self::BLOCKS as $type => $class) {
-            $blocks[] = $type . ': ' . self::describeSettings($class::settings());
+            $blocks[] = sprintf('%s on %s: %s', $type, implode(', ', $class::hooks()), self::describeSettings($class::settings()));
         }
 
         $helper = new HelperForm();
@@ -193,9 +193,8 @@ class Scalizy_Bench extends Module
                     'name' => self::CONFIG_BLOCKS,
                     'rows' => 8,
                     'desc' => sprintf(
-                        'Blocks — %s. Hooks — %s. Example: [{"type": "featured_product", "hook": "displayFooter", "product_id": 1, "slots": 12}]',
-                        implode(' ; ', $blocks),
-                        implode(', ', self::HOOKS)
+                        'Blocks — %s. Example: [{"type": "featured_product", "hook": "displayFooter", "product_id": 1, "slots": 12}]',
+                        implode(' ; ', $blocks)
                     ),
                 ]],
                 'submit' => ['title' => $this->l('Save')],

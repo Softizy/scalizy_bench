@@ -10,7 +10,7 @@ Aucun bloc n'est affiché : `SCALIZY_FRONT_BLOCKS` vaut `[]`.
 
 ## Configuration
 
-Back-office, Modules > Scalizy front blocks : `SCALIZY_FRONT_BLOCKS` contient une liste JSON de blocs. Chaque bloc a un `type`, le `hook` où il s'affiche, et ses réglages (valeur par défaut si absents). Une configuration invalide est refusée à l'enregistrement et l'ancienne valeur est conservée ; une valeur invalide écrite directement en base n'affiche aucun bloc.
+Back-office, Modules > Scalizy front blocks : `SCALIZY_FRONT_BLOCKS` contient une liste JSON de blocs. Chaque bloc a un `type`, le `hook` où il s'affiche (parmi ceux de son type), et ses réglages (valeur par défaut si absents). Une configuration invalide est refusée à l'enregistrement et l'ancienne valeur est conservée ; une valeur invalide écrite directement en base n'affiche aucun bloc.
 
 ```json
 [
@@ -19,16 +19,14 @@ Back-office, Modules > Scalizy front blocks : `SCALIZY_FRONT_BLOCKS` contient un
 ]
 ```
 
-Hooks disponibles : `displayHeader`, `displayTop`, `displayHome`, `displayFooter`.
-
 ## Blocs
 
-| Type | Affiche | Réglages (défaut) | Code |
-|---|---|---|---|
-| `featured_product` | le nom du produit à la une sur chaque emplacement | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
-| `remote_widget` | le HTML servi par l'URL du widget | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
+| Type | Affiche | Hooks | Réglages (défaut) | Code |
+|---|---|---|---|---|
+| `featured_product` | le nom du produit à la une sur chaque emplacement | `displayHome`, `displayFooter` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
+| `remote_widget` | le HTML servi par l'URL du widget | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
 
-Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (ses réglages et leur valeur par défaut, puis `render()`), déclarée dans `Scalizy_Bench::BLOCKS`.
+Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (ses réglages et leur valeur par défaut, ses hooks, puis `render()`), déclarée dans `Scalizy_Bench::BLOCKS`.
 
 ## Installation
 

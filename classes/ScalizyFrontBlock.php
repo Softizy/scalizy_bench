@@ -16,6 +16,11 @@ interface ScalizyFrontBlock
     public static function settings();
 
     /**
+     * @return array<int, string> hooks the block can be displayed on
+     */
+    public static function hooks();
+
+    /**
      * @param array<string, int|string> $settings
      *
      * @return string
