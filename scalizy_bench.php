@@ -29,7 +29,7 @@ class Scalizy_Bench extends Module
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '1.2.1';
+        $this->version = '1.2.2';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -51,6 +51,8 @@ class Scalizy_Bench extends Module
     public function uninstall()
     {
         Configuration::deleteByName(self::CONFIG_BLOCKS);
+        Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_HTML);
+        Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_FETCHED_AT);
 
         return parent::uninstall();
     }

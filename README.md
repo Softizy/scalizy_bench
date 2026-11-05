@@ -24,7 +24,7 @@ Back-office, Modules > Scalizy front blocks : `SCALIZY_FRONT_BLOCKS` contient un
 | Type | Affiche | Hooks | Réglages (défaut) | Code |
 |---|---|---|---|---|
 | `featured_product` | le nom du produit à la une sur chaque emplacement | `displayHome`, `displayFooter` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
-| `remote_widget` | le HTML servi par l'URL du widget | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
+| `remote_widget` | le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
 
 Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (ses réglages et leur valeur par défaut, ses hooks, puis `render()`), déclarée dans `Scalizy_Bench::BLOCKS`.
 
