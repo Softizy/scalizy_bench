@@ -42,8 +42,8 @@ class Scalizy_Bench extends Module
                     'compute' => 'Calcul PHP coûteux dans le hook (bloc Tendances du module cible)',
                     'remote' => 'Appel HTTP externe bloquant, sans cache ni délai maximal (bloc Bandeau partenaire du module cible)',
                 ]],
-                'rounds' => ['label' => 'Intensité du calcul : tours de classement', 'default' => 230, 'max' => 5000, 'cause' => 'compute',
-                    'desc' => 'Cause « calcul ». 230 tours sur 200 produits ajoutent environ 300 ms par page.'],
+                'rounds' => ['label' => 'Intensité du calcul : tours de classement', 'default' => 260, 'max' => 5000, 'cause' => 'compute',
+                    'desc' => 'Cause « calcul ». 260 tours sur 200 produits ajoutent environ 300 à 350 ms par page.'],
                 'url' => ['label' => 'URL appelée', 'default' => '', 'cause' => 'remote',
                     'desc' => 'Cause « appel externe ». La page attend la réponse de cette URL : une URL qui répond en 400 ms ajoute environ 400 ms.'],
             ],
@@ -72,7 +72,7 @@ class Scalizy_Bench extends Module
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '2.0.0';
+        $this->version = '2.0.1';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
