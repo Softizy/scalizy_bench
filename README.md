@@ -14,12 +14,21 @@ Back-office, Modules > Scalizy front blocks : une section par bloc, avec sa case
 
 | Case | Bloc | Hooks | Réglages (défaut) | Code |
 |---|---|---|---|---|
-| `sql-n-plus-1` | Featured product : le nom du produit à la une sur chaque emplacement | `displayFooter`, `displayHome` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
-| `sql-slow-query` | Popular products : les 5 produits les plus vus des 30 derniers jours, comptés dans l'historique des vues (`ps_scalizy_product_view`) | `displayFooterAfter`, `displayNavFullWidth` | `ms` (400) | `classes/block/ScalizyPopularProductsBlock.php` |
-| `ttfb-hook` | Product ranking : les 5 premiers de 200 produits classés par confrontations deux à deux | `displayFooterBefore`, `displayNav1` | `ms` (300) | `classes/block/ScalizyProductRankingBlock.php` |
-| `ttfb-external-call` | Remote widget : le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
+| Featured product | Le nom du produit à la une sur chaque emplacement | `displayFooter`, `displayHome` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
+| Popular products | Les 5 produits les plus vus des 30 derniers jours, comptés dans l'historique des vues (`ps_scalizy_product_view`) | `displayFooterAfter`, `displayNavFullWidth` | `views` (3 000 000) | `classes/block/ScalizyPopularProductsBlock.php` |
+| Product ranking | Les 5 premiers produits, classés par confrontations deux à deux | `displayFooterBefore`, `displayNav1` | `products` (200), `rounds` (230) | `classes/block/ScalizyProductRankingBlock.php` |
+| Remote widget | Le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
 
-`ms` est la durée visée pour le bloc, mesurée sur la boutique à chaque enregistrement : Popular products recrée son historique de vues jusqu'à ce que son comptage prenne ce temps (quelques secondes pour ~2 millions de vues), Product ranking en déduit son nombre de tours (`SCALIZY_PRODUCT_RANKING_ROUNDS`).
+`views` est la taille de l'historique des vues, recréé à chaque enregistrement du bloc coché (quelques secondes pour 3 millions de vues). `products` et `rounds` sont le nombre de produits classés et le nombre de tours de confrontations.
+
+Temps d'affichage mesurés en local (PrestaShop 8.2 et 1.7.8, page d'accueil, Docker sur un poste de développement) :
+
+| Bloc | Réglage | Temps ajouté |
+|---|---|---|
+| Featured product | `slots` 300 | ~30 ms, 300 requêtes |
+| Popular products | `views` 2 000 000 / 2 500 000 / 3 000 000 | ~240 ms / ~300 ms / ~400 à 500 ms |
+| Product ranking | `products` 200, `rounds` 230 | ~300 ms |
+| Remote widget | URL qui répond en 400 ms | ~400 ms |
 
 Les réglages d'un bloc coché sont vérifiés à l'enregistrement : une valeur invalide est refusée avec son message, et rien n'est enregistré. Un bloc dont la configuration en base est invalide n'est pas affiché.
 
@@ -34,7 +43,7 @@ cp -r scalizy_bench <boutique>/modules/
 php bin/console prestashop:module install scalizy_bench
 ```
 
-Depuis la 1.2.x : `php bin/console prestashop:module upgrade scalizy_bench` remplace `SCALIZY_FRONT_BLOCKS` par les nouvelles clés, tous blocs décochés. Depuis la 1.3.0 : la même commande remplace `refine_ms` par `products` et `rounds`. Depuis la 1.3.1 : elle remplace `products` et `rounds` par `ms` (300), ajoute Popular products décoché et recalibre le classement s'il est coché.
+Depuis la 1.2.x : `php bin/console prestashop:module upgrade scalizy_bench` remplace `SCALIZY_FRONT_BLOCKS` par les nouvelles clés, tous blocs décochés. Depuis la 1.4.0 : la même commande remplace les réglages `ms` par `views` (Popular products) et par `products` et `rounds` (Product ranking), et recrée l'historique des vues si Popular products est coché.
 
 ## Licence
 

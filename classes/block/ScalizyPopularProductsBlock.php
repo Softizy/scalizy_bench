@@ -15,7 +15,6 @@ class ScalizyPopularProductsBlock implements ScalizyFrontBlock
     const DAYS = 30;
     const HISTORY_SECONDS = 7776000;
     const FIRST_IMPORT = 1000;
-    const MAX_VIEWS = 16000000;
 
     private $module;
 
@@ -26,7 +25,7 @@ class ScalizyPopularProductsBlock implements ScalizyFrontBlock
 
     public static function settings()
     {
-        return ['ms' => 400];
+        return ['views' => 3000000];
     }
 
     public static function hooks()
@@ -47,20 +46,17 @@ class ScalizyPopularProductsBlock implements ScalizyFrontBlock
             $products = [1];
         }
         $rows = [];
-        for ($view = 0; $view < self::FIRST_IMPORT; ++$view) {
+        for ($view = 0; $view < min(self::FIRST_IMPORT, $settings['views']); ++$view) {
             $rows[] = ['id_product' => $products[$view % count($products)], 'id_shop' => $idShop, 'date_add' => date('Y-m-d H:i:s', time() - mt_rand(0, self::HISTORY_SECONDS))];
         }
-        $db->insert(self::TABLE, $rows);
-
-        $views = self::FIRST_IMPORT;
-        $ms = $this->measure($idShop);
-        while ($ms < $settings['ms'] && $views < self::MAX_VIEWS) {
-            $db->execute('INSERT INTO `' . $table . '` (`id_product`, `id_shop`, `date_add`) SELECT `id_product`, `id_shop`, NOW() - INTERVAL FLOOR(RAND() * ' . self::HISTORY_SECONDS . ') SECOND FROM `' . $table . '`');
-            $views *= 2;
-            $ms = $this->measure($idShop);
+        if ([] !== $rows) {
+            $db->insert(self::TABLE, $rows);
         }
-        if ($ms > $settings['ms'] && $views > self::FIRST_IMPORT) {
-            $db->execute('DELETE FROM `' . $table . '` WHERE `id_product_view` > ' . (int) ceil($views * $settings['ms'] / $ms));
+
+        $views = count($rows);
+        while ($views > 0 && $views < $settings['views']) {
+            $db->execute('INSERT INTO `' . $table . '` (`id_product`, `id_shop`, `date_add`) SELECT `id_product`, `id_shop`, NOW() - INTERVAL FLOOR(RAND() * ' . self::HISTORY_SECONDS . ') SECOND FROM `' . $table . '` LIMIT ' . (int) ($settings['views'] - $views));
+            $views = min($views * 2, $settings['views']);
         }
 
         return true;
@@ -104,11 +100,4 @@ class ScalizyPopularProductsBlock implements ScalizyFrontBlock
         return $popular;
     }
 
-    private function measure($idShop)
-    {
-        $start = microtime(true);
-        $this->popularProducts($idShop);
-
-        return (microtime(true) - $start) * 1000;
-    }
 }

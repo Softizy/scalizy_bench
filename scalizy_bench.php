@@ -21,17 +21,17 @@ class Scalizy_Bench extends Module
     const HOOKS = ['displayHeader', 'displayNav1', 'displayNavFullWidth', 'displayTop', 'displayHome', 'displayFooterBefore', 'displayFooter', 'displayFooterAfter'];
 
     const BLOCKS = [
-        'SCALIZY_FEATURED_PRODUCT' => ['class' => 'ScalizyFeaturedProductBlock', 'title' => 'Featured product', 'checkbox' => 'sql-n-plus-1'],
-        'SCALIZY_POPULAR_PRODUCTS' => ['class' => 'ScalizyPopularProductsBlock', 'title' => 'Popular products', 'checkbox' => 'sql-slow-query'],
-        'SCALIZY_PRODUCT_RANKING' => ['class' => 'ScalizyProductRankingBlock', 'title' => 'Product ranking', 'checkbox' => 'ttfb-hook'],
-        'SCALIZY_REMOTE_WIDGET' => ['class' => 'ScalizyRemoteWidgetBlock', 'title' => 'Remote widget', 'checkbox' => 'ttfb-external-call'],
+        'SCALIZY_FEATURED_PRODUCT' => ['class' => 'ScalizyFeaturedProductBlock', 'title' => 'Featured product'],
+        'SCALIZY_POPULAR_PRODUCTS' => ['class' => 'ScalizyPopularProductsBlock', 'title' => 'Popular products'],
+        'SCALIZY_PRODUCT_RANKING' => ['class' => 'ScalizyProductRankingBlock', 'title' => 'Product ranking'],
+        'SCALIZY_REMOTE_WIDGET' => ['class' => 'ScalizyRemoteWidgetBlock', 'title' => 'Remote widget'],
     ];
 
     public function __construct()
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '1.4.0';
+        $this->version = '1.4.1';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -57,7 +57,6 @@ class Scalizy_Bench extends Module
         }
         Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_HTML);
         Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_FETCHED_AT);
-        Configuration::deleteByName(ScalizyProductRankingBlock::ROUNDS);
         ScalizyPopularProductsBlock::dropTable();
 
         return parent::uninstall();
@@ -211,7 +210,7 @@ class Scalizy_Bench extends Module
                 try {
                     self::parseBlock($block['class'], $values);
                 } catch (InvalidArgumentException $e) {
-                    $errors[] = sprintf('%s (%s): %s.', $block['title'], $block['checkbox'], $e->getMessage());
+                    $errors[] = sprintf('%s: %s.', $block['title'], $e->getMessage());
                 }
             }
             $submitted[$config] = ['enabled' => $enabled, 'values' => $values];
@@ -248,7 +247,7 @@ class Scalizy_Bench extends Module
                 'type' => 'checkbox',
                 'label' => $this->l('Display'),
                 'name' => $config . '_ENABLED',
-                'values' => ['query' => [['id' => 'on', 'name' => $block['checkbox']]], 'id' => 'id', 'name' => 'name'],
+                'values' => ['query' => [['id' => 'on', 'name' => $block['title']]], 'id' => 'id', 'name' => 'name'],
             ], [
                 'type' => 'select',
                 'label' => $this->l('Hook'),
