@@ -10,21 +10,13 @@ if (!defined('_PS_VERSION_')) {
 
 class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
 {
+    const PRODUCT_ID = 1;
+
     private $module;
 
     public function __construct(Module $module)
     {
         $this->module = $module;
-    }
-
-    public static function settings()
-    {
-        return ['product_id' => 1, 'slots' => 12];
-    }
-
-    public static function hooks()
-    {
-        return ['displayFooter', 'displayHome'];
     }
 
     public function enable(array $settings)
@@ -35,11 +27,11 @@ class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
     public function render(array $settings)
     {
         $context = Context::getContext();
-        $idProduct = (int) $settings['product_id'];
+        $idProduct = self::PRODUCT_ID;
         $idLang = (int) $context->language->id;
         $idShop = (int) $context->shop->id;
         $slots = [];
-        for ($slot = 0; $slot < $settings['slots']; ++$slot) {
+        for ($slot = 0; $slot < $settings['queries']; ++$slot) {
             $rows = Db::getInstance()->executeS('SELECT pl.`name`, pl.`link_rewrite` FROM `' . _DB_PREFIX_ . 'product_lang` pl WHERE pl.`id_product` = ' . $idProduct . ' AND pl.`id_lang` = ' . $idLang . ' AND pl.`id_shop` = ' . $idShop);
             if (!empty($rows)) {
                 $slots[] = $rows[0];

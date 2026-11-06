@@ -11,16 +11,6 @@ if (!defined('_PS_VERSION_')) {
 interface ScalizyFrontBlock
 {
     /**
-     * @return array<string, int|string> settings of the block, with their default value
-     */
-    public static function settings();
-
-    /**
-     * @return array<int, string> hooks the block can be displayed on
-     */
-    public static function hooks();
-
-    /**
      * Prepares what the block reads once it is displayed, each time its settings are saved.
      *
      * @param array<string, int|string> $settings

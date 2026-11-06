@@ -1,40 +1,40 @@
-# scalizy_bench — Scalizy front blocks
+# scalizy_bench — simulation de dégradations de performance
 
-Module PrestaShop qui ajoute quatre blocs au front office : un produit à la une répété sur plusieurs emplacements, les produits les plus vus des 30 derniers jours, un classement de produits, et un widget HTML récupéré sur une URL distante.
-
-Compatible PrestaShop 1.7 et 8.
+Outil de test et de développement pour PrestaShop 1.7 et 8 : il simule un TTFB, un temps SQL ou un nombre de requêtes SQL dégradés sur le front office. Chaque dégradation est produite par du vrai code fautif (calcul coûteux sans cache, appel HTTP bloquant, requête sans index, N+1), pas par une attente artificielle : c'est ce code qu'une analyse de performance doit pouvoir trouver et corriger.
 
 ## À l'installation
 
-Aucun bloc n'est affiché : les quatre cases sont décochées.
+Aucune simulation n'est active : les trois cases sont décochées.
 
 ## Configuration
 
-Back-office, Modules > Scalizy front blocks : une section par bloc, avec sa case à cocher, son hook et ses réglages. On peut cocher un, plusieurs ou aucun bloc.
+Back-office, Modules > Scalizy bench : une section par simulation, avec sa case « Activer », le hook où appliquer la dégradation et son intensité. Les simulations se cochent seules ou ensemble, sur le même hook ou sur des hooks différents.
 
-| Case | Bloc | Hooks | Réglages (défaut) | Code |
-|---|---|---|---|---|
-| Featured product | Le nom du produit à la une sur chaque emplacement | `displayFooter`, `displayHome` | `product_id` (1), `slots` (12) | `classes/block/ScalizyFeaturedProductBlock.php` |
-| Popular products | Les 5 produits les plus vus des 30 derniers jours, comptés dans l'historique des vues (`ps_scalizy_product_view`) | `displayFooterAfter`, `displayNavFullWidth` | `views` (3 000 000) | `classes/block/ScalizyPopularProductsBlock.php` |
-| Product ranking | Les 5 premiers produits, classés par confrontations deux à deux | `displayFooterBefore`, `displayNav1` | `products` (200), `rounds` (230) | `classes/block/ScalizyProductRankingBlock.php` |
-| Remote widget | Le HTML servi par l'URL du widget, ou sa dernière copie si l'URL ne répond pas | `displayHeader`, `displayTop` | `url` (obligatoire) | `classes/block/ScalizyRemoteWidgetBlock.php` |
+| Simulation | Code fautif | Réglages (défaut) | Code |
+|---|---|---|---|
+| Simuler un TTFB dégradé | Cause « calcul » : classement de 200 produits par confrontations deux à deux, recalculé à chaque page sans cache. Cause « appel externe » : HTML d'un widget lu sur une URL à chaque page, sans cache ni délai maximal | hook (`displayFooterBefore`), cause (calcul), tours de classement (230), URL appelée (obligatoire pour la cause « appel externe ») | `classes/block/ScalizyProductRankingBlock.php`, `classes/block/ScalizyRemoteWidgetBlock.php` |
+| Simuler un temps SQL dégradé | Comptage des vues des 30 derniers jours sur `ps_scalizy_product_view`, sans index sur la boutique et la date | hook (`displayFooterAfter`), lignes de la table de vues (3 000 000) | `classes/block/ScalizyPopularProductsBlock.php` |
+| Simuler un nombre de requêtes SQL dégradé (N+1) | Le même produit relu une fois par emplacement au lieu d'une seule requête | hook (`displayFooter`), nombre de requêtes ajoutées par page (300) | `classes/block/ScalizyFeaturedProductBlock.php` |
 
-`views` est la taille de l'historique des vues, recréé à chaque enregistrement du bloc coché (quelques secondes pour 3 millions de vues). `products` et `rounds` sont le nombre de produits classés et le nombre de tours de confrontations.
+Hooks proposés pour chaque simulation : `displayHeader`, `displayNav1`, `displayNavFullWidth`, `displayTop`, `displayHome` (page d'accueil uniquement), `displayFooterBefore`, `displayFooter`, `displayFooterAfter`.
 
-Temps d'affichage mesurés en local (PrestaShop 8.2 et 1.7.8, page d'accueil, Docker sur un poste de développement) :
+La table de vues est recréée à chaque enregistrement de la simulation de temps SQL cochée (quelques secondes pour 3 millions de lignes).
 
-| Bloc | Réglage | Temps ajouté |
+Temps ajoutés mesurés en local (PrestaShop 8.2 et 1.7.8, page d'accueil, Docker sur un poste de développement) :
+
+| Simulation | Réglage | Effet |
 |---|---|---|
-| Featured product | `slots` 300 | ~30 ms, 300 requêtes |
-| Popular products | `views` 2 000 000 / 2 500 000 / 3 000 000 | ~240 ms / ~300 ms / ~400 à 500 ms |
-| Product ranking | `products` 200, `rounds` 230 | ~300 ms |
-| Remote widget | URL qui répond en 400 ms | ~400 ms |
+| TTFB dégradé, calcul | 230 tours | ~300 ms |
+| TTFB dégradé, appel externe | URL qui répond en 400 ms | ~400 ms |
+| Temps SQL dégradé | 3 000 000 lignes | ~400 à 500 ms, une requête |
+| Requêtes SQL (N+1) | 300 requêtes | +300 requêtes, ~20 à 120 ms |
+| Les trois ensemble | défauts | ~0,7 à 1,1 s |
 
-Les réglages d'un bloc coché sont vérifiés à l'enregistrement : une valeur invalide est refusée avec son message, et rien n'est enregistré. Un bloc dont la configuration en base est invalide n'est pas affiché.
+Les réglages d'une simulation cochée sont vérifiés à l'enregistrement : une valeur invalide est refusée avec son message, et rien n'est enregistré. Une simulation dont la configuration en base est invalide ne s'applique pas.
 
-Clés de configuration : `SCALIZY_<BLOC>_ENABLED`, `SCALIZY_<BLOC>_HOOK` et `SCALIZY_<BLOC>_<RÉGLAGE>`, avec `<BLOC>` parmi `FEATURED_PRODUCT`, `POPULAR_PRODUCTS`, `PRODUCT_RANKING` et `REMOTE_WIDGET`. La désinstallation supprime ces clés et la table `ps_scalizy_product_view`.
+Clés de configuration : `SCALIZY_BENCH_<SIMULATION>_ENABLED`, `SCALIZY_BENCH_<SIMULATION>_HOOK` et `SCALIZY_BENCH_<SIMULATION>_<RÉGLAGE>`, avec `<SIMULATION>` parmi `TTFB` (réglages `CAUSE`, `ROUNDS`, `URL`), `SQL_TIME` (`VIEWS`) et `SQL_QUERIES` (`QUERIES`). La désinstallation supprime ces clés et la table `ps_scalizy_product_view`.
 
-Ajouter un bloc : une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (ses réglages et leur valeur par défaut, ses hooks, `enable()` appelé à chaque enregistrement du bloc coché, puis `render()`), déclarée dans `Scalizy_Bench::BLOCKS`.
+Ajouter une simulation : une entrée dans `Scalizy_Bench::SIMULATIONS` (titre, hook par défaut, réglages) et une classe dans `classes/block/` qui implémente `ScalizyFrontBlock` (`enable()`, appelé à chaque enregistrement de la simulation cochée, puis `render()`).
 
 ## Installation
 
@@ -43,7 +43,7 @@ cp -r scalizy_bench <boutique>/modules/
 php bin/console prestashop:module install scalizy_bench
 ```
 
-Depuis la 1.2.x : `php bin/console prestashop:module upgrade scalizy_bench` remplace `SCALIZY_FRONT_BLOCKS` par les nouvelles clés, tous blocs décochés. Depuis la 1.4.0 : la même commande remplace les réglages `ms` par `views` (Popular products) et par `products` et `rounds` (Product ranking), et recrée l'historique des vues si Popular products est coché.
+Depuis une version antérieure : `php bin/console prestashop:module upgrade scalizy_bench`. En 1.5.0, la mise à jour remplace les réglages par bloc des versions 1.3 et 1.4 par les trois simulations, toutes décochées, et supprime la table de vues.
 
 ## Licence
 

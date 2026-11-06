@@ -11,22 +11,13 @@ if (!defined('_PS_VERSION_')) {
 class ScalizyProductRankingBlock implements ScalizyFrontBlock
 {
     const SHOWN = 5;
+    const PRODUCTS = 200;
 
     private $module;
 
     public function __construct(Module $module)
     {
         $this->module = $module;
-    }
-
-    public static function settings()
-    {
-        return ['products' => 200, 'rounds' => 230];
-    }
-
-    public static function hooks()
-    {
-        return ['displayFooterBefore', 'displayNav1'];
     }
 
     public function enable(array $settings)
@@ -36,7 +27,7 @@ class ScalizyProductRankingBlock implements ScalizyFrontBlock
 
     public function render(array $settings)
     {
-        Context::getContext()->smarty->assign('product_ranking', $this->rank(max(2, $settings['products']), $settings['rounds']));
+        Context::getContext()->smarty->assign('product_ranking', $this->rank(self::PRODUCTS, $settings['rounds']));
 
         return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/product_ranking.tpl');
     }

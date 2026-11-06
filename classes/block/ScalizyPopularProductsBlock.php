@@ -23,16 +23,6 @@ class ScalizyPopularProductsBlock implements ScalizyFrontBlock
         $this->module = $module;
     }
 
-    public static function settings()
-    {
-        return ['views' => 3000000];
-    }
-
-    public static function hooks()
-    {
-        return ['displayFooterAfter', 'displayNavFullWidth'];
-    }
-
     public function enable(array $settings)
     {
         $db = Db::getInstance();
@@ -99,5 +89,4 @@ class ScalizyPopularProductsBlock implements ScalizyFrontBlock
 
         return $popular;
     }
-
 }
