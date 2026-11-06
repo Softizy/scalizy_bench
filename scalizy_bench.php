@@ -1,6 +1,7 @@
 <?php
 /**
- * Test and development tool: simulates a degraded TTFB, SQL time or SQL query count with real faulty front office code.
+ * Test and development tool: degrades the TTFB, SQL time or SQL query count of a target module, through the target's
+ * own configuration, so that the slowdown is measured on the target's real faulty code.
  *
  * @author    Softizy
  * @copyright Softizy
@@ -10,14 +11,16 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once __DIR__ . '/classes/ScalizyFrontBlock.php';
-require_once __DIR__ . '/classes/block/ScalizyFeaturedProductBlock.php';
-require_once __DIR__ . '/classes/block/ScalizyPopularProductsBlock.php';
-require_once __DIR__ . '/classes/block/ScalizyProductRankingBlock.php';
-require_once __DIR__ . '/classes/block/ScalizyRemoteWidgetBlock.php';
+require_once __DIR__ . '/classes/target/ScalizyBenchProductHighlightsTarget.php';
 
 class Scalizy_Bench extends Module
 {
+    const TARGETS = [
+        ScalizyBenchProductHighlightsTarget::MODULE => ['class' => 'ScalizyBenchProductHighlightsTarget', 'title' => 'product_highlights : Mises en avant produits'],
+    ];
+
+    const TARGET = 'SCALIZY_BENCH_TARGET';
+
     const HOOKS = [
         'displayHeader' => 'displayHeader : en-tête de page (balise head)',
         'displayNav1' => 'displayNav1 : barre de navigation',
@@ -34,11 +37,10 @@ class Scalizy_Bench extends Module
             'title' => 'Simuler un TTFB dégradé',
             'desc' => 'Ralentit la génération de chaque page où le hook s\'exécute, sans requête SQL supplémentaire.',
             'hook' => 'displayFooterBefore',
-            'block' => ['compute' => 'ScalizyProductRankingBlock', 'remote' => 'ScalizyRemoteWidgetBlock'],
             'settings' => [
                 'cause' => ['label' => 'Cause', 'default' => 'compute', 'choices' => [
-                    'compute' => 'Calcul PHP coûteux dans le hook (classement de produits)',
-                    'remote' => 'Appel HTTP externe bloquant, sans cache ni délai maximal (widget distant)',
+                    'compute' => 'Calcul PHP coûteux dans le hook (bloc Tendances du module cible)',
+                    'remote' => 'Appel HTTP externe bloquant, sans cache ni délai maximal (bloc Bandeau partenaire du module cible)',
                 ]],
                 'rounds' => ['label' => 'Intensité du calcul : tours de classement', 'default' => 230, 'max' => 5000, 'cause' => 'compute',
                     'desc' => 'Cause « calcul ». 230 tours sur 200 produits ajoutent environ 300 ms par page.'],
@@ -48,19 +50,17 @@ class Scalizy_Bench extends Module
         ],
         'SCALIZY_BENCH_SQL_TIME' => [
             'title' => 'Simuler un temps SQL dégradé',
-            'desc' => 'Ajoute à chaque page où le hook s\'exécute une requête lente : un comptage sur une table de vues sans index adapté.',
+            'desc' => 'Ajoute à chaque page où le hook s\'exécute une requête lente : le bloc Produits populaires du module cible compte son historique de vues, sans index adapté.',
             'hook' => 'displayFooterAfter',
-            'block' => 'ScalizyPopularProductsBlock',
             'settings' => [
                 'views' => ['label' => 'Intensité : lignes de la table de vues', 'default' => 3000000, 'max' => 20000000,
-                    'desc' => 'Table ps_scalizy_product_view, recréée à l\'enregistrement (quelques secondes). 3 000 000 de lignes ajoutent environ 400 à 500 ms par page.'],
+                    'desc' => 'Historique de vues du module cible, recréé à l\'enregistrement (quelques secondes). 3 000 000 de lignes ajoutent environ 400 à 500 ms par page.'],
             ],
         ],
         'SCALIZY_BENCH_SQL_QUERIES' => [
             'title' => 'Simuler un nombre de requêtes SQL dégradé (N+1)',
-            'desc' => 'Relit le même produit une fois par emplacement, au lieu d\'une seule requête, à chaque page où le hook s\'exécute.',
+            'desc' => 'Le bloc Produit à la une du module cible relit le même produit une fois par emplacement, au lieu d\'une seule requête, à chaque page où le hook s\'exécute.',
             'hook' => 'displayFooter',
-            'block' => 'ScalizyFeaturedProductBlock',
             'settings' => [
                 'queries' => ['label' => 'Nombre de requêtes ajoutées par page', 'default' => 300, 'max' => 10000,
                     'desc' => '300 requêtes ajoutent environ 20 à 120 ms par page selon la boutique.'],
@@ -72,7 +72,7 @@ class Scalizy_Bench extends Module
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '1.5.0';
+        $this->version = '2.0.0';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -81,30 +81,30 @@ class Scalizy_Bench extends Module
         parent::__construct();
 
         $this->displayName = 'Scalizy bench : simulation de dégradations';
-        $this->description = 'Outil de test et de développement : simule un TTFB, un temps SQL ou un nombre de requêtes SQL dégradés, avec du vrai code fautif.';
+        $this->description = 'Outil de test et de développement : dégrade le TTFB, le temps SQL ou le nombre de requêtes SQL d\'un module cible, avec son propre code fautif.';
     }
 
     public function install()
     {
-        return parent::install() && $this->registerHook(array_keys(self::HOOKS)) && $this->resetSimulations();
+        return parent::install() && $this->resetSimulations();
     }
 
     public function uninstall()
     {
+        $this->neutralizeTarget();
         foreach (array_keys(self::SIMULATIONS) as $config) {
             foreach (self::fieldNames($config) as $name) {
                 Configuration::deleteByName($name);
             }
         }
-        Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_HTML);
-        Configuration::deleteByName(ScalizyRemoteWidgetBlock::WIDGET_FETCHED_AT);
-        ScalizyPopularProductsBlock::dropTable();
+        Configuration::deleteByName(self::TARGET);
 
         return parent::uninstall();
     }
 
     public function resetSimulations()
     {
+        Configuration::updateValue(self::TARGET, ScalizyBenchProductHighlightsTarget::MODULE);
         foreach (self::SIMULATIONS as $config => $simulation) {
             Configuration::updateValue($config . '_ENABLED', 0);
             Configuration::updateValue($config . '_HOOK', $simulation['hook']);
@@ -116,65 +116,26 @@ class Scalizy_Bench extends Module
         return true;
     }
 
-    public function hookDisplayHeader($params)
+    public function neutralizeTarget()
     {
-        return $this->renderBlocks('displayHeader');
-    }
-
-    public function hookDisplayNav1($params)
-    {
-        return $this->renderBlocks('displayNav1');
-    }
-
-    public function hookDisplayNavFullWidth($params)
-    {
-        return $this->renderBlocks('displayNavFullWidth');
-    }
-
-    public function hookDisplayTop($params)
-    {
-        return $this->renderBlocks('displayTop');
-    }
-
-    public function hookDisplayHome($params)
-    {
-        return $this->renderBlocks('displayHome');
-    }
-
-    public function hookDisplayFooterBefore($params)
-    {
-        return $this->renderBlocks('displayFooterBefore');
-    }
-
-    public function hookDisplayFooter($params)
-    {
-        return $this->renderBlocks('displayFooter');
-    }
-
-    public function hookDisplayFooterAfter($params)
-    {
-        return $this->renderBlocks('displayFooterAfter');
-    }
-
-    private function renderBlocks($hook)
-    {
-        $html = '';
-        foreach (array_keys(self::SIMULATIONS) as $config) {
-            if (!Configuration::get($config . '_ENABLED')) {
-                continue;
-            }
-            try {
-                $values = self::parseSimulation($config, self::storedValues($config));
-            } catch (InvalidArgumentException $e) {
-                continue;
-            }
-            if ($values['hook'] === $hook) {
-                $class = self::blockClass($config, $values['settings']);
-                $html .= (new $class($this))->render($values['settings']);
+        $target = self::installedTarget((string) Configuration::get(self::TARGET));
+        if (null !== $target) {
+            foreach (array_keys(self::SIMULATIONS) as $config) {
+                $target->apply($config, false, '', []);
             }
         }
 
-        return $html;
+        return true;
+    }
+
+    private static function installedTarget($module)
+    {
+        if (!isset(self::TARGETS[$module]) || !Module::isInstalled($module)) {
+            return null;
+        }
+        $class = self::TARGETS[$module]['class'];
+
+        return new $class();
     }
 
     /**
@@ -218,13 +179,6 @@ class Scalizy_Bench extends Module
         return ['hook' => $values['hook'], 'settings' => $settings];
     }
 
-    private static function blockClass($config, array $settings)
-    {
-        $block = self::SIMULATIONS[$config]['block'];
-
-        return is_array($block) ? $block[$settings['cause']] : $block;
-    }
-
     private static function storedValues($config)
     {
         $values = ['hook' => (string) Configuration::get($config . '_HOOK')];
@@ -253,6 +207,11 @@ class Scalizy_Bench extends Module
 
         $submitted = [];
         $errors = [];
+        $module = (string) Tools::getValue(self::TARGET);
+        $target = self::installedTarget($module);
+        if (null === $target) {
+            $errors[] = sprintf('Module cible : « %s » n\'est pas un module cible compatible installé.', $module);
+        }
         foreach (self::SIMULATIONS as $config => $simulation) {
             $enabled = (bool) Tools::getValue($config . '_ENABLED_on');
             $values = [];
@@ -275,18 +234,20 @@ class Scalizy_Bench extends Module
             return $this->displayError($errors) . $this->renderForm();
         }
 
+        Configuration::updateValue(self::TARGET, $module);
         foreach ($submitted as $config => $simulation) {
             Configuration::updateValue($config . '_ENABLED', $simulation['enabled'] ? 1 : 0);
-            if ($simulation['enabled']) {
-                foreach (self::fieldNames($config) as $key => $name) {
-                    if ('enabled' !== $key) {
-                        Configuration::updateValue($name, $simulation['values'][$key]);
-                    }
-                }
-                $values = self::parseSimulation($config, $simulation['values']);
-                $class = self::blockClass($config, $values['settings']);
-                (new $class($this))->enable($values['settings']);
+            if (!$simulation['enabled']) {
+                $target->apply($config, false, '', []);
+                continue;
             }
+            foreach (self::fieldNames($config) as $key => $name) {
+                if ('enabled' !== $key) {
+                    Configuration::updateValue($name, $simulation['values'][$key]);
+                }
+            }
+            $values = self::parseSimulation($config, $simulation['values']);
+            $target->apply($config, true, $values['hook'], $values['settings']);
         }
 
         return $this->displayConfirmation('Simulations enregistrées.') . $this->renderForm();
@@ -294,8 +255,24 @@ class Scalizy_Bench extends Module
 
     private function renderForm()
     {
-        $forms = [];
-        $fieldsValue = [];
+        $targets = [];
+        foreach (self::TARGETS as $module => $target) {
+            if (Module::isInstalled($module)) {
+                $targets[$module] = $target['title'];
+            }
+        }
+        $forms = [['form' => [
+            'legend' => ['title' => 'Module cible à dégrader'],
+            'input' => [[
+                'type' => 'select',
+                'label' => 'Module cible',
+                'name' => self::TARGET,
+                'desc' => [] === $targets ? 'Aucun module cible compatible n\'est installé : installez product_highlights.' : 'Les dégradations activées ci-dessous s\'appliquent à ce module, avec son propre code.',
+                'options' => ['query' => self::options($targets), 'id' => 'id', 'name' => 'name'],
+            ]],
+            'submit' => ['title' => 'Enregistrer'],
+        ]]];
+        $fieldsValue = [self::TARGET => Configuration::get(self::TARGET)];
         foreach (self::SIMULATIONS as $config => $simulation) {
             $inputs = [[
                 'type' => 'checkbox',

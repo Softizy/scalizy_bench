@@ -8,10 +8,9 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ScalizyProductRankingBlock implements ScalizyFrontBlock
+class ProductHighlightsTrendingBlock implements ProductHighlightsBlock
 {
     const SHOWN = 5;
-    const PRODUCTS = 200;
 
     private $module;
 
@@ -20,26 +19,21 @@ class ScalizyProductRankingBlock implements ScalizyFrontBlock
         $this->module = $module;
     }
 
-    public function enable(array $settings)
-    {
-        return true;
-    }
-
     public function render(array $settings)
     {
-        Context::getContext()->smarty->assign('product_ranking', $this->rank(self::PRODUCTS, $settings['rounds']));
+        Context::getContext()->smarty->assign('highlight_trending', $this->rank(max(2, $settings['products']), $settings['passes']));
 
-        return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/product_ranking.tpl');
+        return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/trending.tpl');
     }
 
-    private function rank($products, $rounds)
+    private function rank($products, $passes)
     {
         $ratings = array_fill(1, $products, 1500.0);
-        for ($round = 0; $round < $rounds; ++$round) {
+        for ($pass = 0; $pass < $passes; ++$pass) {
             for ($first = 1; $first < $products; ++$first) {
                 for ($second = $first + 1; $second <= $products; ++$second) {
                     $expected = 1 / (1 + pow(10, ($ratings[$second] - $ratings[$first]) / 400));
-                    $won = ($first * 7 + $second * 3 + $round) % 5 < 3 ? 1.0 : 0.0;
+                    $won = ($first * 7 + $second * 3 + $pass) % 5 < 3 ? 1.0 : 0.0;
                     $ratings[$first] += 16 * ($won - $expected);
                     $ratings[$second] -= 16 * ($won - $expected);
                 }

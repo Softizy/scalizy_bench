@@ -8,9 +8,12 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-function upgrade_module_1_3_0($module)
+interface ProductHighlightsBlock
 {
-    Configuration::deleteByName('SCALIZY_FRONT_BLOCKS');
-
-    return $module->registerHook(Scalizy_Bench::HOOKS) && $module->resetBlocks();
+    /**
+     * @param array<string, int|string> $settings
+     *
+     * @return string
+     */
+    public function render(array $settings);
 }

@@ -8,10 +8,8 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
+class ProductHighlightsFeaturedBlock implements ProductHighlightsBlock
 {
-    const PRODUCT_ID = 1;
-
     private $module;
 
     public function __construct(Module $module)
@@ -19,27 +17,22 @@ class ScalizyFeaturedProductBlock implements ScalizyFrontBlock
         $this->module = $module;
     }
 
-    public function enable(array $settings)
-    {
-        return true;
-    }
-
     public function render(array $settings)
     {
         $context = Context::getContext();
-        $idProduct = self::PRODUCT_ID;
+        $idProduct = (int) $settings['product_id'];
         $idLang = (int) $context->language->id;
         $idShop = (int) $context->shop->id;
         $slots = [];
-        for ($slot = 0; $slot < $settings['queries']; ++$slot) {
+        for ($slot = 0; $slot < $settings['slots']; ++$slot) {
             $rows = Db::getInstance()->executeS('SELECT pl.`name`, pl.`link_rewrite` FROM `' . _DB_PREFIX_ . 'product_lang` pl WHERE pl.`id_product` = ' . $idProduct . ' AND pl.`id_lang` = ' . $idLang . ' AND pl.`id_shop` = ' . $idShop);
             if (!empty($rows)) {
                 $slots[] = $rows[0];
             }
         }
 
-        $context->smarty->assign('featured_product_slots', $slots);
+        $context->smarty->assign('highlight_featured_slots', $slots);
 
-        return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/featured_product.tpl');
+        return $this->module->display($this->module->getLocalPath() . $this->module->name . '.php', 'views/templates/hook/featured.tpl');
     }
 }
