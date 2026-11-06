@@ -19,7 +19,7 @@ L'enregistrement écrit la configuration du module cible. Une simulation décoch
 
 | Simulation | Bloc de `product_highlights` activé | Réglages du bench (défaut) | Code fautif |
 |---|---|---|---|
-| Simuler un TTFB dégradé, cause « calcul » | Tendances : classement de 200 produits par confrontations deux à deux, recalculé à chaque page sans cache | hook (`displayFooterBefore`), tours de classement (260) | `product_highlights/classes/block/ProductHighlightsTrendingBlock.php` |
+| Simuler un TTFB dégradé, cause « calcul » | Tendances : classement de 200 produits par confrontations deux à deux, recalculé à chaque page sans cache | hook (`displayFooterBefore`), tours de classement (260 sur PrestaShop 8, 290 sur 1.7) | `product_highlights/classes/block/ProductHighlightsTrendingBlock.php` |
 | Simuler un TTFB dégradé, cause « appel externe » | Bandeau partenaire : HTML lu sur une URL à chaque page, sans cache ni délai maximal | hook, URL appelée (obligatoire) | `product_highlights/classes/block/ProductHighlightsPartnerBannerBlock.php` |
 | Simuler un temps SQL dégradé | Produits populaires : comptage des vues des 30 derniers jours sur `ps_product_highlights_view`, sans index sur la boutique et la date | hook (`displayFooterAfter`), lignes de l'historique de vues (3 000 000) | `product_highlights/classes/block/ProductHighlightsPopularBlock.php` |
 | Simuler un nombre de requêtes SQL dégradé (N+1) | Produit à la une : le même produit relu une fois par emplacement | hook (`displayFooter`), nombre de requêtes ajoutées par page (300) | `product_highlights/classes/block/ProductHighlightsFeaturedBlock.php` |
@@ -32,7 +32,7 @@ Temps ajoutés mesurés en local (PrestaShop 8.2 et 1.7.8, page d'accueil, Docke
 
 | Simulation | Réglage | Effet |
 |---|---|---|
-| TTFB dégradé, calcul | 260 tours | ~300 ms (1.7.8) à ~350 ms (8.2) |
+| TTFB dégradé, calcul | 260 tours (8.2), 290 tours (1.7.8) | ~350 ms |
 | TTFB dégradé, appel externe | URL qui répond en 400 ms | ~400 ms |
 | Temps SQL dégradé | 3 000 000 lignes | ~400 à 500 ms, une requête |
 | Requêtes SQL (N+1) | 300 requêtes | +300 requêtes, ~20 à 140 ms |
@@ -53,7 +53,7 @@ php bin/console prestashop:module install product_highlights
 php bin/console prestashop:module install scalizy_bench
 ```
 
-Depuis une version antérieure du bench : `php bin/console prestashop:module upgrade scalizy_bench` (PrestaShop 8). En 2.0.0, la mise à jour retire les hooks et la table de vues du bench, supprime les réglages des versions 1.x et laisse les trois simulations décochées. Le code fautif est désormais dans `product_highlights`, à installer avant de réactiver une simulation. En 2.0.1, la mise à jour passe les tours de classement de 230 à 260 s'ils étaient restés à 230.
+Depuis une version antérieure du bench : `php bin/console prestashop:module upgrade scalizy_bench` (PrestaShop 8). En 2.0.0, la mise à jour retire les hooks et la table de vues du bench, supprime les réglages des versions 1.x et laisse les trois simulations décochées. Le code fautif est désormais dans `product_highlights`, à installer avant de réactiver une simulation. En 2.0.1, la mise à jour passe les tours de classement de 230 à 260 s'ils étaient restés à 230. En 2.0.2, sur PrestaShop 1.7 seulement, elle les passe de 260 à 290 s'ils étaient restés à 260.
 
 ## Licence
 

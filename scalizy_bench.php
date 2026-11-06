@@ -42,8 +42,8 @@ class Scalizy_Bench extends Module
                     'compute' => 'Calcul PHP coûteux dans le hook (bloc Tendances du module cible)',
                     'remote' => 'Appel HTTP externe bloquant, sans cache ni délai maximal (bloc Bandeau partenaire du module cible)',
                 ]],
-                'rounds' => ['label' => 'Intensité du calcul : tours de classement', 'default' => 260, 'max' => 5000, 'cause' => 'compute',
-                    'desc' => 'Cause « calcul ». 260 tours sur 200 produits ajoutent environ 300 à 350 ms par page.'],
+                'rounds' => ['label' => 'Intensité du calcul : tours de classement', 'default' => 260, 'default_before_ps8' => 290, 'max' => 5000, 'cause' => 'compute',
+                    'desc' => 'Cause « calcul ». Par défaut, 260 tours sur PrestaShop 8 et 290 sur PrestaShop 1.7 ajoutent environ 350 ms par page.'],
                 'url' => ['label' => 'URL appelée', 'default' => '', 'cause' => 'remote',
                     'desc' => 'Cause « appel externe ». La page attend la réponse de cette URL : une URL qui répond en 400 ms ajoute environ 400 ms.'],
             ],
@@ -72,7 +72,7 @@ class Scalizy_Bench extends Module
     {
         $this->name = 'scalizy_bench';
         $this->tab = 'front_office_features';
-        $this->version = '2.0.1';
+        $this->version = '2.0.2';
         $this->author = 'Softizy';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -109,11 +109,20 @@ class Scalizy_Bench extends Module
             Configuration::updateValue($config . '_ENABLED', 0);
             Configuration::updateValue($config . '_HOOK', $simulation['hook']);
             foreach ($simulation['settings'] as $name => $setting) {
-                Configuration::updateValue($config . '_' . strtoupper($name), $setting['default']);
+                Configuration::updateValue($config . '_' . strtoupper($name), self::defaultValue($setting));
             }
         }
 
         return true;
+    }
+
+    public static function defaultValue(array $setting)
+    {
+        if (isset($setting['default_before_ps8']) && version_compare(_PS_VERSION_, '8.0.0', '<')) {
+            return $setting['default_before_ps8'];
+        }
+
+        return $setting['default'];
     }
 
     public function neutralizeTarget()
